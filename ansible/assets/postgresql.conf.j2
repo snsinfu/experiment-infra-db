@@ -1,0 +1,30 @@
+# SERVER ---------------------------------------------------------------------
+
+listen_addresses = '*'
+port = 5432
+password_encryption = md5
+
+
+# MEMORY AND DISK ------------------------------------------------------------
+
+shared_buffers = 512MB
+work_mem = 8MB
+maintenance_work_mem = 128MB
+
+effective_cache_size = 1312MB  # ARC + shared_buffers
+effective_io_concurrency = 100
+
+temp_file_limit = 512MB
+
+# Async commit improves latency and throughput by ~8x. I'm ok with the risk of
+# potential loss of transactions on server crash.
+synchronous_commit = off
+
+
+# WAL ------------------------------------------------------------------------
+
+# We use zfs snapshot for backup. WAL can be minimal.
+max_wal_senders = 0
+wal_level = minimal
+
+wal_buffers = 16MB

@@ -1,0 +1,55 @@
+- set_facts:
+    postgres_path: /data/postgresql-{{ postgres_version }}
+
+- name: postgresql is installed
+  pkgng:
+    name: postgresql{{ postgres_version }}-server
+    state: present
+
+- name: postgresql service is configured
+  copy:
+    content: |
+      postgresql_enable="YES"
+      postgresql_data="/data/postgresql-{{ postgres_version }}"
+      postgresql_initdb_flags="--locale C --encoding utf-8 -W"
+    dest: /etc/rc.conf.d/postgresql
+
+- name: postgresql dataset is present
+  zfs:
+    name: data/postgresql-{{ postgres_version }}
+    state: present
+    extra_zfs_properties:
+      atime: "off"
+      recordsize: "8k"
+
+- name: postgresql dataset owner is correct
+  file:
+    path: /data/postgresql-{{ postgres_version }}
+    owner: postgres
+    group: postgres
+
+- name: postgresql database is created
+  expect:
+    command: service postgresql initdb
+    creates: /data/postgresql-12/PG_VERSION
+    responses:
+      "(password|again)": "{{ postgres_password }}"
+
+- name: postgresql server config is up
+  template:
+    src: assets/postgresql.conf.j2
+    dest: /data/postgresql-12/postgresql.conf
+    owner: postgres
+    group: postgres
+
+- name: postgresql auth config is up
+  template:
+    src: assets/pg_hba.conf.j2
+    dest: /data/postgresql-12/pg_hba.conf
+    owner: postgres
+    group: postgres
+
+- name: postgresql service is started
+  service:
+    name: postgresql
+    state: started

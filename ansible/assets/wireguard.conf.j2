@@ -1,0 +1,19 @@
+[Interface]
+PrivateKey = {{ wireguard_node.private_key | default('') }}
+Address = {{ wireguard_network | ipaddr(wireguard_node.host_id) }}
+{% if wireguard_node.endpoint is defined %}
+ListenPort = {{ wireguard_node.endpoint.split(':') | last }}
+{% endif %}
+
+{% for peer in wireguard_peers %}
+[Peer] # {{ peer.name }}
+PublicKey = {{ peer.public_key }}
+AllowedIPs = {{ wireguard_network | ipsubnet(32, peer.host_id) }}
+{% if peer.endpoint is defined %}
+EndPoint = {{ peer.endpoint }}
+{% endif %}
+{% if wireguard_node.endpoint is not defined %}
+PersistentKeepAlive = 25
+{% endif %}
+
+{% endfor %}

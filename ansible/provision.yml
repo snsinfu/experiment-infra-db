@@ -1,0 +1,217 @@
+- hosts: data
+  become: yes
+
+  vars:
+    ansible_python_interpreter: /usr/local/bin/python3.7
+
+  tasks:
+    - name: pexpect is installed
+      pkgng:
+        name: py37-pexpect
+        state: present
+
+
+    # SYSTEM TUNNINGS --------------------------------------------------------
+
+    - name: extra virtual terminals are disabled
+      lineinfile:
+        path: /etc/ttys
+        regexp: '^ttyv[1-9]'
+        state: absent
+
+
+    # ZFS --------------------------------------------------------------------
+
+    - name: zfs resource usage is tuned
+      stanza:
+        content: |
+          vfs.zfs.arc_max="1024M"
+        path: /boot/loader.conf
+
+    - name: zfs automounting is enabled
+      copy:
+        content: |
+          zfs_enable="YES"
+        dest: /etc/rc.conf.d/zfs
+
+    - name: zpool existence is checked
+      command: zpool status data
+      changed_when: none
+      failed_when: none
+      register: _zpool_status
+
+    - name: zpool is imported
+      command: zpool import -f data
+      when: _zpool_status.rc != 0
+
+
+    # POSTGRESQL -------------------------------------------------------------
+
+    - name: postgresql is installed
+      pkgng:
+        name: postgresql12-server
+        state: present
+
+    - name: postgresql service is configured
+      copy:
+        content: |
+          postgresql_enable="YES"
+          postgresql_data="/data/postgresql-12"
+          postgresql_initdb_flags="--locale C --encoding utf-8 -W"
+        dest: /etc/rc.conf.d/postgresql
+
+    - name: postgresql dataset is present
+      zfs:
+        name: data/postgresql-12
+        state: present
+        extra_zfs_properties:
+          atime: "off"
+          recordsize: "8k"
+
+    - name: postgresql directory owner is correct
+      file:
+        path: /data/postgresql-12
+        owner: postgres
+        group: postgres
+
+    - name: postgresql database is created
+      expect:
+        command: service postgresql initdb
+        creates: /data/postgresql-12/PG_VERSION
+        responses:
+          "(password|again)": "{{ postgres_password }}"
+
+    - name: postgresql server config is up
+      template:
+        src: assets/postgresql.conf.j2
+        dest: /data/postgresql-12/postgresql.conf
+        owner: postgres
+        group: postgres
+
+    - name: postgresql auth config is up
+      template:
+        src: assets/pg_hba.conf.j2
+        dest: /data/postgresql-12/pg_hba.conf
+        owner: postgres
+        group: postgres
+
+    - name: postgresql service is started
+      service:
+        name: postgresql
+        state: started
+
+
+    # PGBOUNCER --------------------------------------------------------------
+
+    - name: pgbouncer is installed
+      pkgng:
+        name: pgbouncer
+        state: present
+
+    - name: pgbouncer config is up
+      template:
+        src: assets/pgbouncer.ini.j2
+        dest: /usr/local/etc/pgbouncer.ini
+
+    - name: pgbouncer user list is up
+      template:
+        src: assets/pgbouncer.users.j2
+        dest: /usr/local/etc/pgbouncer.users
+        owner: pgbouncer
+        group: pgbouncer
+        mode: 0600
+
+    - name: pgbouncer auth config is up
+      template:
+        src: assets/pg_hba.conf.j2
+        dest: /usr/local/etc/pgbouncer.hba
+
+    - name: pgbouncer service port is registered
+      lineinfile:
+        path: /etc/services
+        regexp: '^pgbouncer\s'
+        line: pgbouncer 6432/tcp
+
+    - name: postgresql service is configured
+      copy:
+        content: |
+          pgbouncer_enable="YES"
+        dest: /etc/rc.conf.d/pgbouncer
+
+    - name: pgbouncner service is started
+      service:
+        name: pgbouncer
+        state: started
+
+
+    # WIREGUARD --------------------------------------------------------------
+
+    - name: wireguard is installed
+      pkgng:
+        name: wireguard
+        state: present
+
+    - name: wireguard service config is up
+      copy:
+        content: |
+          wireguard_enable="YES"
+          wireguard_interfaces="wg0"
+        dest: /etc/rc.conf.d/wireguard
+
+    - name: wireguard interface config is up
+      template:
+        src: assets/wireguard.conf.j2
+        dest: /usr/local/etc/wireguard/wg0.conf
+        mode: 0600
+      vars:
+        wireguard_node: "{{ wireguard_nodes | where(name=inventory_hostname) | first }}"
+        wireguard_peers: "{{ wireguard_nodes | unless(name=inventory_hostname) }}"
+
+    - name: wireguard service port is registered
+      lineinfile:
+        path: /etc/services
+        regexp: '^wireguard\s'
+        line: wireguard 850/udp
+
+    # Service script provided by FreeBSD's wireguard package does not support
+    # `status` command. This breaks Ansible's `service` module. Fix it.
+    - name: wireguard service script is patched
+      patch:
+        src: assets/rc-wireguard.patch
+        dest: /usr/local/etc/rc.d/wireguard
+      register: task
+      failed_when: task.failed and not task.msg.startswith('Ignoring previously applied')
+
+    - name: wireguard service is started
+      service:
+        name: wireguard
+        state: started
+
+    - name: wireguard inventory is generated
+      template:
+        src: assets/inventory-wireguard.j2
+        dest: ../inventory/_20-wireguard-{{ inventory_hostname }}
+      vars:
+        node: "{{ wireguard_nodes | where(name=inventory_hostname) | first }}"
+      connection: local
+      become: no
+
+
+    # FIREWALL ---------------------------------------------------------------
+
+    - name: ipfw script is up
+      template:
+        src: assets/ipfw.rules.j2
+        dest: /etc/ipfw.rules
+
+    - name: ipfw service is configured
+      copy:
+        content: |
+          firewall_enable="YES"
+          firewall_script="/etc/ipfw.rules"
+        dest: /etc/rc.conf.d/ipfw
+
+    - name: ipfw service is started
+      service:
+        name: ipfw
+        state: started

@@ -1,0 +1,18 @@
+- hosts: localhost
+  become: no
+  connection: local
+
+  tasks:
+    - name: output directory is created
+      file:
+        path: ../_outputs
+        state: directory
+
+    - name: wireguard client config files are generated
+      template:
+        src: assets/wireguard.conf.j2
+        dest: ../_outputs/wireguard-{{ wireguard_node.name }}.conf
+      vars:
+        wireguard_node: "{{ wireguard_nodes | where(name=item) | first }}"
+        wireguard_peers: "{{ wireguard_nodes | unless(name=item) }}"
+      with_items: "{{ wireguard_nodes | map(attribute='name') | list }}"

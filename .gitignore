@@ -1,0 +1,7 @@
+.*
+_*
+!.gitignore
+
+*.tfstate
+*.tfstate.backup
+*.tfvars

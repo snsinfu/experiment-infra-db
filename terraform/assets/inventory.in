@@ -1,0 +1,5 @@
+[server]
+data public_address=${data_public_address}
+
+[server:vars]
+ansible_host={{ public_address }}

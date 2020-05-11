@@ -1,0 +1,5 @@
+{% set name = node.name %}
+{% set address = wireguard_network | ipaddr(node.host_id) | ipaddr('address') %}
+
+[servers]
+{{ name }} ansible_host={{ address }}

@@ -1,0 +1,21 @@
+- name: zfs resource usage is tuned
+  stanza:
+    content: |
+      vfs.zfs.arc_max="1024M"
+    path: /boot/loader.conf
+
+- name: zfs automounting is enabled
+  copy:
+    content: |
+      zfs_enable="YES"
+    dest: /etc/rc.conf.d/zfs
+
+- name: zpool existence is checked
+  command: zpool status data
+  changed_when: none
+  failed_when: none
+  register: _zpool_status
+
+- name: zpool is imported
+  command: zpool import -f data
+  when: _zpool_status.rc != 0

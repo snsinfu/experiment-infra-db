@@ -1,0 +1,3 @@
+{% for db in postgres_databases %}
+"{{ db.name }}" "md5{{ (db.password + db.name) | hash('md5') }}"
+{% endfor %}
