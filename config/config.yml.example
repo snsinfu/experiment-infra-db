@@ -6,7 +6,7 @@ infra:
   server_hostname: data
   server_location: fsn1
   server_type: cx11
-  server_image: "12345678901234567890"  # custom freebsd 12.1
+  server_image: "12345678901234567890"
 
 persistent_volume_id: "12345678901234567890"
 
@@ -30,14 +30,12 @@ wireguard_network: 10.20.30.0/24
 wireguard_port: 12345
 
 wireguard_nodes:
-  # Servers
   - name: data
     host_id: 1
     private_key: ...
     public_key: ...
     endpoint: "{{ hostvars['data'].public_address }}:{{ wireguard_port }}"
 
-  # Clients
   - name: client1
     host_id: 101
     private_key: ...

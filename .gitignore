@@ -6,4 +6,4 @@ _*
 *.tfstate.backup
 *.tfvars
 
-/config/*secrets.yml
+/config/*.yml
