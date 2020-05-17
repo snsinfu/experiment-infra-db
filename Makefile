@@ -73,3 +73,6 @@ ping: inventory/_10-terraform
 
 provision: _connection.ok
 	ansible-playbook ansible/provision.yml
+
+wireguard:
+	ansible-playbook ansible/wireguard.yml
