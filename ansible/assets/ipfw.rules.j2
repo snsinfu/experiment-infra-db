@@ -31,6 +31,7 @@ ADD 110 allow udp from any to me wireguard in via ${WAN} keep-state
 ADD 120 allow tcp from any to me ssh        in via ${VPN} keep-state setup
 ADD 120 allow tcp from any to me postgresql in via ${VPN} keep-state setup
 ADD 120 allow tcp from any to me pgbouncer  in via ${VPN} keep-state setup
+ADD 120 allow tcp from any to me minio      in via ${VPN} keep-state setup
 
 # Reject access to non-open ports gracefully when accessed from VPN. This is
 # for better diagnosability.

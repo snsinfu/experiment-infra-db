@@ -221,6 +221,59 @@
       become: no
 
 
+    # MinIO ------------------------------------------------------------------
+
+    - name: minio is installed
+      pkgng:
+        name:
+          - minio
+          - minio-client
+        state: present
+
+    - name: minio envfile is up
+      copy:
+        content: |
+          MINIO_KMS_MASTER_KEY={{ minio_kms_master_key }}
+          MINIO_ACCESS_KEY={{ minio_admin_key }}
+          MINIO_SECRET_KEY={{ minio_admin_secret }}
+          MINIO_BROWSER=on
+        dest: /usr/local/etc/minio.env
+        owner: minio
+        group: minio
+        mode: 0600
+
+    - name: minio dataset is present
+      zfs:
+        name: data/minio
+        state: present
+
+    - name: minio directory owner is correct
+      file:
+        path: /data/minio
+        owner: minio
+        group: minio
+        mode: 0750
+
+    - name: minio service port is registered
+      lineinfile:
+        path: /etc/services
+        regexp: '^minio\s'
+        line: minio 9000/tcp
+
+    - name: minio service is configured
+      copy:
+        content: |
+          minio_enable="YES"
+          minio_disks="/data/minio"
+          minio_env_file="/usr/local/etc/minio.env"
+        dest: /etc/rc.conf.d/minio
+
+    - name: minio service is started
+      service:
+        name: minio
+        state: started
+
+
     # FIREWALL ---------------------------------------------------------------
 
     - name: ipfw script is up
