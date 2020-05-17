@@ -20,6 +20,30 @@
         state: absent
 
 
+    # NTP --------------------------------------------------------------------
+
+    - name: openntpd is installed
+      pkgng:
+        name: openntpd
+        state: present
+
+    - name: openntpd is configured
+      copy:
+        src: assets/ntpd.conf
+        dest: /usr/local/etc/ntpd.conf
+
+    - name: openntpd service is configured
+      copy:
+        content: |
+          openntpd_enable="YES"
+        dest: /etc/rc.conf.d/openntpd
+
+    - name: openntpd service is started
+      service:
+        name: openntpd
+        state: started
+
+
     # ZFS --------------------------------------------------------------------
 
     - name: zfs resource usage is tuned
